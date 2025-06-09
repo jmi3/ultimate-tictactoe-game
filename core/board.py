@@ -1,7 +1,7 @@
-from placeable import Placeable
-from game_symbol import GameSymbol
-from move import Move
-from cell import Cell
+from core.placeable import Placeable
+from core.game_symbol import GameSymbol
+from core.move import Move
+from core.cell import Cell
 
 
 class Board(Placeable):
@@ -25,8 +25,12 @@ class Board(Placeable):
         dimensions: tuple,
         cell_type: Placeable.__class__,
         cell_params: dict = {},
-        winStreak: int = 3,
+        win_streak: int = 3,
     ):
+        if cell_type not in Placeable.__subclasses__():
+            raise TypeError(
+                f"cell_type must be a subclass of Placeable, got {cell_type}"
+            )
         self.dimensions = dimensions
         self.rows = dimensions[0]
         self.cols = dimensions[1]
@@ -37,12 +41,12 @@ class Board(Placeable):
         for i in range(self.rows):
             for j in range(self.cols):
                 self.cells[i][j].position = (i, j)
-        self.gameMoves: list[Move] = []
+        self.game_moves: list[Move] = []
         self.symbol = GameSymbol.empty
-        self.winStreak = winStreak
+        self.win_streak = win_streak
 
     @classmethod
-    def layers_init(cls, layers) -> "Board":
+    def layers_init(cls, layers, cell_type=Cell, cell_params={}) -> "Board":
         """
         Initializes a multi-layered board structure based on the provided layer configurations.
         Args:
@@ -63,10 +67,10 @@ class Board(Placeable):
                 "dimensions": dims,
                 "cell_type": ct,
                 "cell_params": cp,
-                "winStreak": st,
+                "win_streak": st,
             }
 
-        result = _params(layers[0]["dimensions"], Cell, {}, layers[0]["streak"])
+        result = _params(layers[0]["dimensions"], cell_type, cell_params, layers[0]["streak"])
         if len(layers) > 1:
             for layer in layers[1:]:
                 result = _params(layer["dimensions"], cls, result, layer["streak"])
@@ -137,7 +141,7 @@ class Board(Placeable):
                     move.sub_move()
                 ):
                     self.symbol = self.winner
-                    self.gameMoves.append(move)
+                    self.game_moves.append(move)
                     return True
 
         raise Exception(f"Invalid move {move} played")
@@ -156,13 +160,13 @@ class Board(Placeable):
             - Restores the previous symbol and updates the board state accordingly.
             - Only the most recent move can be undone.
         """
-        if self.gameMoves[-1] == move:
-            self.cells[move.position[0]][move.position[1]].undoMove(move.sub_move())
+        if self.game_moves[-1] == move:
+            self.cells[move.position[0]][move.position[1]].undo_move(move.sub_move())
             self.symbol = self.winner
-            self.gameMoves.pop()
+            self.game_moves.pop()
         else:
             raise Exception(
-                f"Unable to undo move {move}, last played move was {self.gameMoves[-1]}"
+                f"Unable to undo move {move}, last played move was {self.game_moves[-1]}"
             )
 
     def final_symbol(self) -> GameSymbol:
@@ -255,7 +259,7 @@ class Board(Placeable):
                 else:
                     count = 0
                 prev_symbol = cell.symbol
-                if count == self.winStreak:
+                if count == self.win_streak:
                     return prev_symbol
         return GameSymbol.empty
 
@@ -283,7 +287,7 @@ class Board(Placeable):
         """
         result = []
         if streak is None:
-            streak = self.winStreak
+            streak = self.win_streak
 
         for i in range(-streak, streak):
             if self._is_in_board(x0 + i * dx, y0 + i * dy):
@@ -334,16 +338,16 @@ class Board(Placeable):
                 active = active[
                     : self._check_active_availability(active=active).index(False)
                 ]
-            except Exception as e:
+            except Exception:
                 pass
 
         if len(active) >= 1:
-            moves = self.cells[active[0][0]][active[0][1]].getValidMoves(
+            moves = self.cells[active[0][0]][active[0][1]].get_valid_moves(
                 active[1:], first=False
             )
         else:
             for pos in eCellPositions:
-                moves.extend(self.cells[pos[0]][pos[1]].getValidMoves(first=False))
+                moves.extend(self.cells[pos[0]][pos[1]].get_valid_moves(first=False))
         if first:
             for move in moves:
                 if move.symbol == GameSymbol.empty:
@@ -367,9 +371,9 @@ class Board(Placeable):
         Returns:
             list: The list of currently active positions, or an empty list if no moves have been made.
         """
-        if len(self.gameMoves) == 0:
+        if len(self.game_moves) == 0:
             return []
-        avail = self._check_active_availability(active=self.gameMoves[-1].positions[1:])
+        avail = self._check_active_availability(active=self.game_moves[-1].positions[1:])
         if not all(avail):
-            return self.gameMoves[-1].positions[1 : avail.index(False)]
-        return self.gameMoves[-1].positions[1:]
+            return self.game_moves[-1].positions[1 : avail.index(False)]
+        return self.game_moves[-1].positions[1:]

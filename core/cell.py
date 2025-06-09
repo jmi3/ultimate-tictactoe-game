@@ -1,6 +1,6 @@
-from game_symbol import GameSymbol
-from move import Move
-from placeable import Placeable
+from core.game_symbol import GameSymbol
+from core.move import Move
+from core.placeable import Placeable
 
 from typing import List
 

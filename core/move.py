@@ -1,4 +1,4 @@
-from game_symbol import GameSymbol
+from core.game_symbol import GameSymbol
 
 
 class Move:
